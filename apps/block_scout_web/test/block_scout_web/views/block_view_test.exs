@@ -47,4 +47,68 @@ defmodule BlockScoutWeb.BlockViewTest do
                BlockView.formatted_timestamp(block)
     end
   end
+
+  describe "show_reward?/1" do
+    test "returns false when list of rewards is empty" do
+      assert BlockView.show_reward?([]) == false
+    end
+
+    test "returns true when list of rewards is not empty" do
+      block = insert(:block)
+      validator = insert(:reward, address_hash: block.miner_hash, block_hash: block.hash, address_type: :validator)
+
+      assert BlockView.show_reward?([validator]) == true
+    end
+  end
+
+  describe "formatted_reward/1" do
+    test "returns the reward value formatted into a String" do
+      block = insert(:block)
+
+      validator =
+        insert(
+          :reward,
+          address_hash: block.miner_hash,
+          block_hash: block.hash,
+          address_type: :validator,
+          reward: Decimal.new(1_000_000_000_000_000_000)
+        )
+
+      assert BlockView.formatted_reward(validator) == "1"
+    end
+  end
+
+  describe "combined_rewards_value/1" do
+    test "returns all the reward values summed up and formatted into a String" do
+      block = insert(:block)
+
+      insert(
+        :reward,
+        address_hash: block.miner_hash,
+        block_hash: block.hash,
+        address_type: :validator,
+        reward: Decimal.new(1_000_000_000_000_000_000)
+      )
+
+      insert(
+        :reward,
+        address_hash: block.miner_hash,
+        block_hash: block.hash,
+        address_type: :emission_funds,
+        reward: Decimal.new(1_000_000_000_000_000_000)
+      )
+
+      insert(
+        :reward,
+        address_hash: block.miner_hash,
+        block_hash: block.hash,
+        address_type: :uncle,
+        reward: Decimal.new(1_000_000_000_000_000_000)
+      )
+
+      block = Repo.preload(block, :rewards)
+
+      assert BlockView.combined_rewards_value(block) == "3"
+    end
+  end
 end

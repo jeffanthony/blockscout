@@ -22,6 +22,8 @@ defmodule Explorer.ChainTest do
     Wei
   }
 
+  alias Explorer.Chain.Block.Reward
+
   alias Explorer.Chain.Supply.ProofOfAuthority
 
   alias Explorer.Counters.{AddressesWithBalanceCounter, TokenHoldersCounter}
@@ -3175,6 +3177,72 @@ defmodule Explorer.ChainTest do
 
       assert Chain.list_block_numbers_with_invalid_consensus() ==
                [block2_with_invalid_consensus.number, block8_with_invalid_consensus.number]
+    end
+  end
+
+  describe "block_hash_to_validator_reward/1" do
+    test "returns the block validators info" do
+      block = insert(:block)
+      miner_hash = block.miner_hash
+      block_hash = block.hash
+
+      insert(:reward, address_hash: miner_hash, block_hash: block_hash, address_type: :validator)
+
+      assert %Reward{
+               address_hash: miner_hash,
+               address_type: :validator,
+               block_hash: block_hash
+             } = Chain.block_hash_to_validator_reward(block.hash)
+    end
+  end
+
+  describe "block_hash_to_uncle_reward/1" do
+    test "returns the block validators info" do
+      block = insert(:block)
+      miner_hash = block.miner_hash
+      block_hash = block.hash
+
+      insert(:reward, address_hash: miner_hash, block_hash: block_hash, address_type: :uncle)
+
+      assert %Reward{
+               address_hash: miner_hash,
+               address_type: :uncle,
+               block_hash: block_hash
+             } = Chain.block_hash_to_uncle_reward(block.hash)
+    end
+  end
+
+  describe "block_combined_rewards/1" do
+    test "sums the block_rewards values" do
+      block = insert(:block)
+
+      insert(
+        :reward,
+        address_hash: block.miner_hash,
+        block_hash: block.hash,
+        address_type: :validator,
+        reward: Decimal.new(1_000_000_000_000_000_000)
+      )
+
+      insert(
+        :reward,
+        address_hash: block.miner_hash,
+        block_hash: block.hash,
+        address_type: :emission_funds,
+        reward: Decimal.new(1_000_000_000_000_000_000)
+      )
+
+      insert(
+        :reward,
+        address_hash: block.miner_hash,
+        block_hash: block.hash,
+        address_type: :uncle,
+        reward: Decimal.new(1_000_000_000_000_000_000)
+      )
+
+      block = Repo.preload(block, :rewards)
+
+      assert Chain.block_combined_rewards(block) == Decimal.new(3)
     end
   end
 end

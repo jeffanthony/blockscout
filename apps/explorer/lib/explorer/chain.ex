@@ -38,7 +38,7 @@ defmodule Explorer.Chain do
     Wei
   }
 
-  alias Explorer.Chain.Block.EmissionReward
+  alias Explorer.Chain.Block.{EmissionReward, Reward}
   alias Explorer.Chain.Import.Runner
   alias Explorer.{PagingOptions, Repo}
 
@@ -2155,5 +2155,43 @@ defmodule Explorer.Chain do
       )
 
     Repo.all(query, timeout: :infinity)
+  end
+
+  @spec block_hash_to_validator_reward(Hash.Full.t()) :: Reward.t()
+  def block_hash_to_validator_reward(block_hash) do
+    query =
+      from(
+        r in Reward,
+        where: r.block_hash == ^block_hash and r.address_type == ^:validator
+      )
+
+    Repo.one(query)
+  end
+
+  @spec block_hash_to_uncle_reward(Hash.Full.t()) :: Reward.t()
+  def block_hash_to_uncle_reward(block_hash) do
+    query =
+      from(
+        r in Reward,
+        where: r.block_hash == ^block_hash and r.address_type == ^:uncle
+      )
+
+    Repo.one(query)
+  end
+
+  @doc """
+  Combined block reward from all the fees.
+  """
+  @spec block_combined_rewards(Block.t()) :: Decimal.t()
+  def block_combined_rewards(block) do
+    block.rewards
+    |> Enum.reduce(
+      0,
+      fn block_reward, acc ->
+        block_reward.reward
+        |> Wei.to(:ether)
+        |> Decimal.add(acc)
+      end
+    )
   end
 end
